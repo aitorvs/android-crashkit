@@ -166,7 +166,7 @@ def parse_minidump(path: str) -> dict:
                     break
                 base_addr, = struct.unpack_from("<Q", data, moff)
                 mod_size, = struct.unpack_from("<I", data, moff + 8)
-                name_rva, = struct.unpack_from("<I", data, moff + 28)
+                name_rva, = struct.unpack_from("<I", data, moff + 20)
                 mod_name = _read_minidump_string(data, name_rva)
                 modules.append({
                     "name": os.path.basename(mod_name) if mod_name else "?",
@@ -423,6 +423,8 @@ pre { background: #1e1e2e; color: #cdd6f4; padding: 16px; border-radius: 6px; ov
 .seg button:not(:last-child) { border-right: 1px solid #cbd5e0; }
 .btn-primary { background: #3182ce; color: #fff; }
 .btn-secondary { background: #718096; color: #fff; }
+.btn-danger { background: #fff; color: #e53e3e; border: 1px solid #e53e3e; }
+.btn-danger:hover { background: #fff5f5; }
 .meta { color: #666; font-size: 0.85em; }
 .empty { color: #888; font-style: italic; text-align: center; padding: 32px; }
 tr.filtered td { background: #fff5f5; color: #c53030; text-decoration: line-through; opacity: .7; }
@@ -468,6 +470,9 @@ def _crashes_page(entries: list) -> str:
     if not entries:
         return _page("Crashes", '<div class="empty">No crashes received yet.</div>' + auto_refresh)
 
+    n = len(entries)
+    delete_all = f'<div style="text-align:right;margin-bottom:12px"><a class="btn btn-danger" href="/crashes/delete-all">🗑 Delete All ({n})</a></div>'
+
     rows = ""
     for e in reversed(entries):  # newest first
         fname = html.escape(e["file"])
@@ -482,16 +487,19 @@ def _crashes_page(entries: list) -> str:
         rows += f"""
 <div class="card">
   <div class="card-header">
-    <div>
+    <div style="flex:1;min-width:0">
       <strong>{fname}</strong> {exc_badge}<br>
       <span class="meta">{ts} &nbsp;·&nbsp; {size} KB &nbsp;·&nbsp; {platform} {version} &nbsp;·&nbsp; {process}</span>
     </div>
-    <a class="btn btn-primary" href="/crash/{fname}">View</a>
-    <a class="btn btn-secondary" href="/crash/{fname}/download">⬇ .dmp</a>
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <a class="btn btn-primary" href="/crash/{fname}">View</a>
+      <a class="btn btn-secondary" href="/crash/{fname}/download">⬇ .dmp</a>
+      <a class="btn btn-danger" href="/crash/{fname}/delete">🗑</a>
+    </div>
   </div>
 </div>"""
 
-    return _page("Crashes", rows + auto_refresh)
+    return _page("Crashes", delete_all + rows + auto_refresh)
 
 
 def _detail_page(filename: str, meta: dict, crash_info: dict, stack: Optional[str]) -> str:
@@ -586,6 +594,8 @@ def _detail_page(filename: str, meta: dict, crash_info: dict, stack: Optional[st
   <a href="/crashes">← All crashes</a>
   &nbsp;
   <a class="btn btn-secondary" href="/crash/{fname}/download">⬇ Download .dmp</a>
+  &nbsp;
+  <a class="btn btn-danger" href="/crash/{fname}/delete">🗑 Delete</a>
 </div>
 <div class="meta" style="margin-bottom:16px">{fname} &nbsp;·&nbsp; {received} &nbsp;·&nbsp; {size_kb} KB</div>
 
@@ -665,10 +675,14 @@ class CrashpadHandler(BaseHTTPRequestHandler):
             self._list_dumps_json()
         elif path == "/crashes":
             self._list_crashes_html()
+        elif path == "/crashes/delete-all":
+            self._delete_all_dumps()
         elif path.startswith("/crash/"):
             rest = path[len("/crash/"):]
             if rest.endswith("/download"):
                 self._download_dump(rest[:-len("/download")])
+            elif rest.endswith("/delete"):
+                self._delete_dump(rest[:-len("/delete")])
             else:
                 self._crash_detail(rest)
         else:
@@ -802,6 +816,34 @@ class CrashpadHandler(BaseHTTPRequestHandler):
 
         self._respond(200, "text/plain", f"CrashID={crash_id}".encode())
 
+    def _delete_dump(self, filename: str):
+        filename = os.path.basename(filename)
+        if not filename.endswith(".dmp"):
+            self._respond(400, "text/plain", b"Invalid filename")
+            return
+        dump_path = os.path.join(DUMPS_DIR, filename)
+        if not os.path.exists(dump_path):
+            self._respond(404, "text/plain", b"Dump not found")
+            return
+        meta_path = dump_path.replace(".dmp", ".meta.json")
+        os.remove(dump_path)
+        if os.path.exists(meta_path):
+            os.remove(meta_path)
+        print(f"  🗑 Deleted {filename}")
+        self._redirect("/crashes")
+
+    def _delete_all_dumps(self):
+        deleted = 0
+        for f in self._dump_files():
+            dump_path = os.path.join(DUMPS_DIR, f)
+            meta_path = dump_path.replace(".dmp", ".meta.json")
+            os.remove(dump_path)
+            if os.path.exists(meta_path):
+                os.remove(meta_path)
+            deleted += 1
+        print(f"  🗑 Deleted all ({deleted}) dumps")
+        self._redirect("/crashes")
+
     # ── Helpers ───────────────────────────────────────────────────────────────
     def _read_chunked(self) -> bytes:
         chunks = []
@@ -813,6 +855,12 @@ class CrashpadHandler(BaseHTTPRequestHandler):
             chunks.append(self.rfile.read(chunk_size))
             self.rfile.read(2)
         return b"".join(chunks)
+
+    def _redirect(self, location: str):
+        self.send_response(303)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def _respond(self, status: int, content_type: str, body: bytes):
         self.send_response(status)

@@ -20,4 +20,5 @@
 /external
 /.claude/settings.local.json
 /dumps
+/server/__pycache__
 /crashkit/src/main/cpp/crashpad/include/out
