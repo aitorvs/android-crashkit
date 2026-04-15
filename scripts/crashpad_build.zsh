@@ -18,11 +18,11 @@ set -euo pipefail
 
 print_usage() {
   cat <<EOF
-Usage: $(basename "$0") --abis "arm64-v8a x86 x86_64 armeabi-v7a" --api <minSdk> --out <outdir> [--jobs N] [--symbol-level 1]
+Usage: $(basename "$0") --abis "arm64-v8a x86 x86_64 armeabi-v7a" --api <minSdk> --out <outdir> [--jobs N]
 EOF
 }
 
-ABIS=""; API=""; OUT_ROOT=""; JOBS=""; SYMBOL_LEVEL="1"
+ABIS=""; API=""; OUT_ROOT=""; JOBS=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,7 +30,6 @@ while [[ $# -gt 0 ]]; do
     --api)  API="$2"; shift 2 ;;
     --out)  OUT_ROOT="$2"; shift 2 ;;
     --jobs) JOBS="$2"; shift 2 ;;
-    --symbol-level) SYMBOL_LEVEL="$2"; shift 2 ;;
     -h|--help) print_usage; exit 0 ;;
     *) echo "Unknown arg: $1"; print_usage; exit 1 ;;
   esac
@@ -73,7 +72,7 @@ gen_one() {
   local out="${OUT_ROOT}/${suffix}"
   mkdir -p "$out"
   echo "gn gen $out -- $abi"
-  "$GN" gen "$out" --args="target_os=\"android\" target_cpu=\"${cpu}\" is_debug=false use_custom_libcxx=false android_api_level=${API} android_ndk_root=\"${NDK}\" symbol_level=${SYMBOL_LEVEL} extra_ldflags=\"-static-libstdc++\""
+  "$GN" gen "$out" --args="target_os=\"android\" target_cpu=\"${cpu}\" is_debug=false use_custom_libcxx=false android_api_level=${API} android_ndk_root=\"${NDK}\" extra_ldflags=\"-static-libstdc++\""
 }
 
 build_one() {

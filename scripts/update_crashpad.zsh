@@ -181,6 +181,10 @@ else
   success "Crashpad synced."
 fi
 
+# ── Step 1.5: Apply patches ───────────────────────────────────────────────────
+header "Step 1.5 — Apply patches"
+"$SCRIPT_DIR/apply_patches.zsh" --crashpad-dir "$CRASHPAD_DIR"
+
 # ── Step 2: Build ─────────────────────────────────────────────────────────────
 header "Step 2 — Build Crashpad"
 # Export NDK so crashpad_build.zsh (called by crashpad_all.zsh) can find it

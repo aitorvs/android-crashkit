@@ -120,6 +120,17 @@ Java_com_duckduckgo_android_1crashkit_Crashpad_initializeCrashpad(
     if (jNoRateLimit == JNI_TRUE) {
         arguments.emplace_back("--no-rate-limit");
     }
+    // Allow exactly the annotation keys we set ourselves — the hardcoded ones above plus
+    // whatever the caller passed in extraAnnotations. Any annotation injected by WebView
+    // or other third-party code (guid, variations, gpu-*, vulkan-*, …) is excluded.
+    for (const auto& kv : annotations) {
+        arguments.push_back("--allow-annotation=" + kv.first);
+    }
+    // Passthrough keys set by the system/WebView that are useful for debugging but not PII.
+    // We don't set these ourselves so they can't go through the annotations map above.
+    for (const auto& key : {"ptype", "osarch"}) {
+        arguments.push_back("--allow-annotation=" + string(key));
+    }
 
     // Crashpad local database
     unique_ptr<CrashReportDatabase> crashReportDatabase = CrashReportDatabase::Initialize(reportsDir);

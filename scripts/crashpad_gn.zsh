@@ -2,7 +2,6 @@
 set -euo pipefail
 
 API_LEVEL=26
-SYMBOL_LEVEL=1
 IS_DEBUG=false
 IS_COMPONENT=false
 USE_CUSTOM_LIBCXX=false
@@ -15,7 +14,7 @@ ABIS=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
 usage() {
   cat <<EOF
 Usage: $0 [--abis "arm64-v8a x86 x86_64"] [--api 26] [--out out] [--clean] [--asan]
-          [--symbol-level 1] [--ndk /path/to/ndk] [--extra-ldflags "..."]
+          [--ndk /path/to/ndk] [--extra-ldflags "..."]
 EOF
 }
 
@@ -32,7 +31,6 @@ while [[ $# -gt 0 ]]; do
     --out)             OUTROOT="$2"; shift 2 ;;
     --clean)           CLEAN=true; shift ;;
     --asan)            ASAN=true; shift ;;
-    --symbol-level)    SYMBOL_LEVEL="$2"; shift 2 ;;
     --extra-ldflags)   EXTRA_LDFLAGS="$2"; shift 2 ;;
     --ndk)             NDK_PATH="$2"; shift 2 ;;
     -h|--help)         usage; exit 0 ;;
@@ -79,7 +77,6 @@ for abi in "${ABIS[@]}"; do
     use_custom_libcxx=${USE_CUSTOM_LIBCXX}
     android_api_level=${API_LEVEL}
     android_ndk_root=\"${NDK_PATH}\"
-    symbol_level=${SYMBOL_LEVEL}
     extra_ldflags=\"${EXTRA_LDFLAGS}\"
   )
   # (Note: 'is_asan' isn't a Crashpad arg; omit to avoid GN warnings.)

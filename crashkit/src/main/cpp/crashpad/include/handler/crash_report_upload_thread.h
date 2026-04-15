@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 
@@ -62,6 +63,12 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
     //! reports known to exist by having been added by the ReportPending()
     //! method. No scans for new pending reports will be conducted.
     bool watch_pending_reports;
+
+    //! When non-empty, only annotation keys present in this set are included in
+    //! the HTTP upload form fields. Annotations not in the set are dropped
+    //! before upload but remain in the on-disk minidump. When empty, all
+    //! annotations are uploaded (default behaviour, backward compatible).
+    std::set<std::string> allowed_annotations;
   };
 
   //! \brief Observation callback invoked each time the in-process handler

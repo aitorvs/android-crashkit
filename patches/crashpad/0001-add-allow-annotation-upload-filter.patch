@@ -1,0 +1,104 @@
+diff --git a/handler/crash_report_upload_thread.cc b/handler/crash_report_upload_thread.cc
+index bec87142..67467da2 100644
+--- a/handler/crash_report_upload_thread.cc
++++ b/handler/crash_report_upload_thread.cc
+@@ -312,7 +312,8 @@ CrashReportUploadThread::UploadResult CrashReportUploadThread::UploadReport(
+     if (kv.first == kMinidumpKey) {
+       LOG(WARNING) << "reserved key " << kv.first << ", discarding value "
+                    << kv.second;
+-    } else {
++    } else if (options_.allowed_annotations.empty() ||
++               options_.allowed_annotations.count(kv.first) > 0) {
+       http_multipart_builder.SetFormData(kv.first, kv.second);
+     }
+   }
+diff --git a/handler/crash_report_upload_thread.h b/handler/crash_report_upload_thread.h
+index 22bb26e3..b5320edc 100644
+--- a/handler/crash_report_upload_thread.h
++++ b/handler/crash_report_upload_thread.h
+@@ -17,6 +17,7 @@
+ 
+ #include <functional>
+ #include <memory>
++#include <set>
+ #include <string>
+ #include <unordered_map>
+ 
+@@ -62,6 +63,12 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
+     //! reports known to exist by having been added by the ReportPending()
+     //! method. No scans for new pending reports will be conducted.
+     bool watch_pending_reports;
++
++    //! When non-empty, only annotation keys present in this set are included in
++    //! the HTTP upload form fields. Annotations not in the set are dropped
++    //! before upload but remain in the on-disk minidump. When empty, all
++    //! annotations are uploaded (default behaviour, backward compatible).
++    std::set<std::string> allowed_annotations;
+   };
+ 
+   //! \brief Observation callback invoked each time the in-process handler
+diff --git a/handler/handler_main.cc b/handler/handler_main.cc
+index 7a060799..9d4e5611 100644
+--- a/handler/handler_main.cc
++++ b/handler/handler_main.cc
+@@ -24,6 +24,7 @@
+ #include <atomic>
+ #include <map>
+ #include <memory>
++#include <set>
+ #include <string>
+ #include <utility>
+ #include <vector>
+@@ -105,6 +106,9 @@ void Usage(const base::FilePath& me) {
+ "Crashpad's exception handler server.\n"
+ "\n"
+ "      --annotation=KEY=VALUE  set a process annotation in each crash report\n"
++"      --allow-annotation=KEY  allow annotation KEY in HTTP upload form fields;\n"
++"                              when any --allow-annotation is set, only listed\n"
++"                              keys are uploaded (others remain in the minidump)\n"
+   // clang-format on
+ #if defined(ATTACHMENTS_SUPPORTED)
+       // clang-format off
+@@ -220,6 +224,7 @@ void Usage(const base::FilePath& me) {
+ 
+ struct Options {
+   std::map<std::string, std::string> annotations;
++  std::set<std::string> allowed_annotations;
+   std::map<std::string, std::string> monitor_self_annotations;
+   std::string url;
+   base::FilePath database;
+@@ -580,6 +585,7 @@ int HandlerMain(int argc,
+     // Long options without short equivalents.
+     kOptionLastChar = 255,
+     kOptionAnnotation,
++    kOptionAllowAnnotation,
+ #if defined(ATTACHMENTS_SUPPORTED)
+     kOptionAttachment,
+ #endif  // defined(ATTACHMENTS_SUPPORTED)
+@@ -636,6 +642,7 @@ int HandlerMain(int argc,
+ 
+   static constexpr option long_options[] = {
+     {"annotation", required_argument, nullptr, kOptionAnnotation},
++    {"allow-annotation", required_argument, nullptr, kOptionAllowAnnotation},
+ #if defined(ATTACHMENTS_SUPPORTED)
+     {"attachment", required_argument, nullptr, kOptionAttachment},
+ #endif  // ATTACHMENTS_SUPPORTED
+@@ -819,6 +826,10 @@ int HandlerMain(int argc,
+         options.identify_client_via_url = false;
+         break;
+       }
++      case kOptionAllowAnnotation: {
++        options.allowed_annotations.insert(optarg);
++        break;
++      }
+       case kOptionNoPeriodicTasks: {
+         options.periodic_tasks = false;
+         break;
+@@ -1025,6 +1036,7 @@ int HandlerMain(int argc,
+     upload_thread_options.rate_limit = options.rate_limit;
+     upload_thread_options.upload_gzip = options.upload_gzip;
+     upload_thread_options.watch_pending_reports = options.periodic_tasks;
++    upload_thread_options.allowed_annotations = options.allowed_annotations;
+ 
+     upload_thread.Reset(new CrashReportUploadThread(
+         database.get(),

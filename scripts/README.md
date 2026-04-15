@@ -8,7 +8,9 @@ For the full step-by-step guide see **[BUILDING_CRASHPAD.md](../BUILDING_CRASHPA
 
 | Script | Purpose |
 |---|---|
-| `update_crashpad.zsh` | **End-to-end**: sync → build → vendor → publish (use this normally) |
+| `update_crashpad.zsh` | **End-to-end**: sync → patch → build → vendor → publish (use this normally) |
+| `apply_patches.zsh` | Apply all patches in `patches/crashpad/` to the Crashpad tree |
+| `make_patch.zsh` | Generate a new numbered patch from edits in `external/crashpad/` |
 | `bootstrap_crashpad.zsh` | Clone Crashpad + depot_tools and sync all dependencies |
 | `crashpad_gn.zsh` | Run `gn gen` for one or more Android ABIs |
 | `crashpad_build.zsh` | Run `ninja` for one or more Android ABIs |

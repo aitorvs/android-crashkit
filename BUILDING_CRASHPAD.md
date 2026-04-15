@@ -24,9 +24,37 @@ scripts/update_crashpad.zsh \
   -y
 ```
 
-Pass `--skip-bootstrap` if Crashpad is already synced and you only want to rebuild. Pass `--skip-publish` to vendor artifacts without publishing. Run with `--help` for all options.
+Pass `--skip-bootstrap` if Crashpad is already synced and you only want to rebuild (patches will still be applied). Pass `--skip-publish` to vendor artifacts without publishing. Run with `--help` for all options.
 
 The manual steps below document what the script does under the hood.
+
+---
+
+## Local patches to Crashpad
+
+The `patches/crashpad/` directory contains patches that are applied to Crashpad before every build. They add functionality not present upstream (e.g. annotation allowlisting for PII control).
+
+**Patches are applied automatically** by `update_crashpad.zsh` between sync and build. You don't need to apply them manually.
+
+### Adding a new patch
+
+Make your edits inside `external/crashpad/`, then run:
+
+```bash
+scripts/make_patch.zsh "short description of the change"
+# → patches/crashpad/0002-short-description-of-the-change.patch
+```
+
+Commit the generated `.patch` file to this repo. The working tree in `external/crashpad/` is not committed — only the patch is.
+
+### Handling a conflict after a Crashpad update
+
+If `update_crashpad.zsh` reports a conflict on a patch, abort when prompted, then:
+
+1. Manually re-apply and resolve the conflict in `external/crashpad/`
+2. Regenerate the patch: `scripts/make_patch.zsh "same description"`
+3. Replace the old patch file with the new one
+4. Re-run: `scripts/update_crashpad.zsh --skip-bootstrap`
 
 ---
 
@@ -86,12 +114,11 @@ This runs `gn gen` + `ninja` for each ABI. The GN args used are:
 |---|---|---|
 | `target_os` | `android` | Android cross-compilation |
 | `target_cpu` | per ABI | `arm64`, `arm`, `x86`, `x64` |
-| `is_debug` | `false` | Release build |
+| `is_debug` | `false` | Release build, no debug info |
 | `is_component_build` | `false` | Static `.a` libs, not `.so` |
 | `use_custom_libcxx` | `false` | Use NDK's libc++, not Crashpad's bundled one |
 | `android_api_level` | `26` | Match DDG's minSdk |
 | `android_ndk_root` | `$NDK` | Path to the NDK |
-| `symbol_level` | `1` | Line-number symbols without full debug info bloat |
 | `extra_ldflags` | `-static-libstdc++` | Statically link C++ runtime into the handler |
 
 Artifacts produced per ABI (in `external/crashpad/out/android-<cpu>/`):
@@ -172,9 +199,11 @@ You built on macOS without a proper Android cross-compilation setup. Use Linux, 
 
 | Script | Purpose |
 |---|---|
+| `scripts/update_crashpad.zsh` | **End-to-end**: sync → patch → build → vendor → publish |
+| `scripts/apply_patches.zsh` | Apply all patches in `patches/crashpad/` to the Crashpad tree |
+| `scripts/make_patch.zsh` | Generate a new numbered patch from edits in `external/crashpad/` |
 | `scripts/bootstrap_crashpad.zsh` | Fetch depot_tools + clone/sync Crashpad |
 | `scripts/crashpad_gn.zsh` | Run `gn gen` for one or more ABIs |
 | `scripts/crashpad_build.zsh` | Run `ninja` for one or more ABIs |
 | `scripts/crashpad_all.zsh` | `gn gen` + `ninja` in one step |
 | `scripts/copy_crashpad_static_libs.sh` | Copy handler + `.a` libs into the library module |
-| `scripts/update_crashpad.zsh` | End-to-end: sync + build + vendor + publish |
