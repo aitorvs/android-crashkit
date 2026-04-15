@@ -2,6 +2,14 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/buildtools" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/buildtools/clang_format/script" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/crashpad" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/crashpad/third_party/googletest/googletest" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/crashpad/third_party/libfuzzer/src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/crashpad/third_party/lss/lss" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/crashpad/third_party/mini_chromium/mini_chromium" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/crashpad/third_party/zlib/zlib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/external/depot_tools" vcs="Git" />
   </component>
 </project>

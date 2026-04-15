@@ -13,8 +13,8 @@ data class CrashpadConfig(
 )
 
 object Crashpad {
-    @Volatile private var inited = false
-    @Volatile private var libraryLoaded = false
+    @Volatile internal var inited = false
+    @Volatile internal var libraryLoaded = false
 
     init {
         runCatching { System.loadLibrary("crashkit") }
@@ -52,19 +52,21 @@ object Crashpad {
         }
 
         val handler = File(context.applicationInfo.nativeLibraryDir, "crashpad_handler.so")
-        val ok = initializeCrashpad(
-            context.filesDir.absolutePath,
-            handler.absolutePath,
-            platform = platform,
-            version = version,
-            osVersion = osVersion,
-            uploadUrl = config.uploadUrl,
-            uploadsEnabled = config.uploadsEnabled,
-            noRateLimit = config.noRateLimit,
-            annotationKeys = extraAnnotations.keys.toTypedArray(),
-            annotationValues = extraAnnotations.values.toTypedArray(),
-            markerPath = markerPath,
-        )
+        val ok = runCatching {
+            initializeCrashpad(
+                context.filesDir.absolutePath,
+                handler.absolutePath,
+                platform = platform,
+                version = version,
+                osVersion = osVersion,
+                uploadUrl = config.uploadUrl,
+                uploadsEnabled = config.uploadsEnabled,
+                noRateLimit = config.noRateLimit,
+                annotationKeys = extraAnnotations.keys.toTypedArray(),
+                annotationValues = extraAnnotations.values.toTypedArray(),
+                markerPath = markerPath,
+            )
+        }.getOrDefault(false)
         inited = ok
         return ok
     }
